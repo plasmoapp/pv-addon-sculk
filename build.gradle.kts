@@ -44,9 +44,8 @@ repositories {
     mavenCentral()
     mavenLocal()
 
-    maven {
-        url = uri("https://repo.plo.su")
-    }
+    maven("https://repo.plo.su")
+    maven("https://repo.papermc.io/repository/maven-public/")
 }
 
 tasks {
