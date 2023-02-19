@@ -3,6 +3,7 @@ package su.plo.voice.sculk;
 import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 import org.jetbrains.annotations.NotNull;
 import su.plo.config.Config;
 import su.plo.config.ConfigField;
@@ -15,6 +16,7 @@ import java.util.function.Predicate;
 
 @Config
 @Data
+@Accessors(fluent = true)
 public final class SculkConfig {
 
     @ConfigField(comment = "Should activate sculks while sneaking")

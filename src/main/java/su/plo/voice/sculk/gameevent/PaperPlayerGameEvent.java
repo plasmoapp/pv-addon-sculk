@@ -6,7 +6,7 @@ import org.bukkit.GameEvent;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import su.plo.voice.api.server.player.VoicePlayer;
+import su.plo.voice.api.server.player.VoiceServerPlayer;
 
 import java.util.Map;
 
@@ -15,7 +15,7 @@ public final class PaperPlayerGameEvent implements PlayerGameEvent {
     private final Map<String, NamespacedKey> namespacedKeys = Maps.newHashMap();
 
     @Override
-    public void sendEvent(@NotNull VoicePlayer voicePlayer, @NotNull String gameEventName) {
+    public void sendEvent(@NotNull VoiceServerPlayer voicePlayer, @NotNull String gameEventName) {
         Player player = voicePlayer.getInstance().getInstance();
 
         Bukkit.getScheduler().runTask(
