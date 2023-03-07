@@ -12,17 +12,14 @@ import su.plo.voice.api.encryption.EncryptionException;
 import su.plo.voice.api.event.EventPriority;
 import su.plo.voice.api.event.EventSubscribe;
 import su.plo.voice.api.server.PlasmoVoiceServer;
-import su.plo.voice.api.server.audio.source.ServerAudioSource;
-import su.plo.voice.api.server.config.ServerConfig;
+import su.plo.voice.api.server.audio.capture.ServerActivation;
 import su.plo.voice.api.server.event.VoiceServerInitializeEvent;
 import su.plo.voice.api.server.event.audio.source.PlayerSpeakEvent;
 import su.plo.voice.api.server.event.config.VoiceServerConfigLoadedEvent;
 import su.plo.voice.api.server.event.connection.UdpClientDisconnectedEvent;
-import su.plo.voice.api.server.player.VoicePlayer;
 import su.plo.voice.api.server.player.VoiceServerPlayer;
 import su.plo.voice.api.util.AudioUtil;
-import su.plo.voice.api.util.Params;
-import su.plo.voice.proto.data.audio.source.SourceInfo;
+import su.plo.voice.proto.data.audio.codec.CodecInfo;
 import su.plo.voice.sculk.gameevent.ModPlayerGameEvent;
 import su.plo.voice.sculk.gameevent.PaperPlayerGameEvent;
 import su.plo.voice.sculk.gameevent.PlayerGameEvent;
@@ -87,8 +84,6 @@ public final class SculkAddon {
 
     @EventSubscribe(priority = EventPriority.HIGHEST)
     public void onPlayerSpeak(@NotNull PlayerSpeakEvent event) {
-        if (event.isCancelled()) return;
-
         var activation = voiceServer.getActivationManager()
                 .getActivationById(event.getPacket().getActivationId());
         if (activation.isEmpty()) return;
@@ -100,80 +95,60 @@ public final class SculkAddon {
             return;
         }
 
-        VoiceServerPlayer player = (VoiceServerPlayer) event.getPlayer();
+        var player = (VoiceServerPlayer) event.getPlayer();
         if (!config.sneakActivation() && player.getInstance().isSneaking()) return;
 
         var lastActivation = lastActivationByPlayerId.getOrDefault(player.getInstance().getUUID(), 0L);
         if (System.currentTimeMillis() - lastActivation < 500L) return;
 
-        getPlayerSource(event.getPlayer()).ifPresent((source) -> {
-            SourceInfo sourceInfo = source.getInfo();
+        var packet = event.getPacket();
 
-            short[] decoded;
-            try {
-                decoded = decode(sourceInfo, event.getPacket().getData());
-            } catch (CodecException | EncryptionException e) {
-                e.printStackTrace();
-                return;
-            }
+        short[] decoded;
+        try {
+            decoded = decode(activation.get(), packet.getData(), packet.isStereo() && activation.get().isStereoSupported());
+        } catch (CodecException | EncryptionException e) {
+            e.printStackTrace();
+            return;
+        }
 
-            if (!AudioUtil.containsMinAudioLevel(decoded, config.activationThreshold())) return;
+        if (!AudioUtil.containsMinAudioLevel(decoded, config.activationThreshold())) return;
 
-            lastActivationByPlayerId.put(player.getInstance().getUUID(), System.currentTimeMillis());
+        lastActivationByPlayerId.put(player.getInstance().getUUID(), System.currentTimeMillis());
 
-            playerGameEvent.sendEvent(player, config.gameEvent());
-        });
+        playerGameEvent.sendEvent(player, config.gameEvent());
     }
 
-    private short[] decode(@NotNull SourceInfo sourceInfo, byte[] data) throws CodecException, EncryptionException {
-        var encryption = voiceServer.getEncryptionManager().create(
-                "AES/CBC/PKCS5Padding",
-                voiceServer.getConfig().voice().aesEncryptionKey()
-        );
+    private short[] decode(@NotNull ServerActivation activation, byte[] data, boolean isStereo)
+            throws CodecException, EncryptionException {
+        var serverConfig = voiceServer.getConfig();
+
+        var encryption = voiceServer.getDefaultEncryption();
         data = encryption.decrypt(data);
 
-        AudioDecoder decoder = null;
-        if (sourceInfo.getCodec() != null) {
-            var codecName = sourceInfo.getCodec() + (sourceInfo.isStereo() ? "_stereo" : "_mono");
+        var encoderInfo = activation.getEncoderInfo()
+                .orElseGet(() -> new CodecInfo("opus", Maps.newHashMap()));
 
-            decoder = decoders.computeIfAbsent(
-                    codecName,
-                    (codec) -> {
-                        ServerConfig serverConfig = voiceServer.getConfig();
+        var codecName = encoderInfo.getName() + (isStereo ? "_stereo" : "_mono");
 
-                        Params params;
-                        if (sourceInfo.getCodec().equals("opus")) {
-                            params = Params.builder()
-                                    .set("mode", serverConfig.voice().opus().mode())
-                                    .set("bitrate", String.valueOf(serverConfig.voice().opus().bitrate()))
-                                    .build();
-                        } else {
-                            params = Params.EMPTY;
-                        }
-
-                        int sampleRate = serverConfig.voice().sampleRate();
-
-                        return voiceServer.getCodecManager().createDecoder(
-                                sourceInfo.getCodec(),
-                                sampleRate,
-                                sourceInfo.isStereo(),
-                                (sampleRate / 1_000) * 20,
-                                serverConfig.voice().mtuSize(),
-                                params
-                        );
+        var decoder = decoders.computeIfAbsent(
+                codecName,
+                (codec) -> {
+                    if (encoderInfo.getName().equals("opus")) {
+                        return voiceServer.createOpusDecoder(isStereo);
                     }
-            );
-        }
 
-        if (decoder != null) {
-            decoder.reset();
-            return decoder.decode(data);
-        } else {
-            return AudioUtil.bytesToShorts(data);
-        }
-    }
+                    int sampleRate = serverConfig.voice().sampleRate();
+                    return voiceServer.getCodecManager().createDecoder(
+                            encoderInfo,
+                            sampleRate,
+                            isStereo,
+                            (sampleRate / 1_000) * 20,
+                            serverConfig.voice().mtuSize()
+                    );
+                }
+        );
 
-    private Optional<ServerAudioSource<?>> getPlayerSource(@NotNull VoicePlayer player) {
-        return voiceServer.getSourceManager().getSourceById(player.getInstance().getUUID());
+        decoder.reset();
+        return decoder.decode(data);
     }
 }
