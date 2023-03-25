@@ -1,10 +1,12 @@
 package su.plo.voice.sculk;
 
 import com.google.common.collect.Maps;
+import com.google.inject.Inject;
 import org.jetbrains.annotations.NotNull;
 import su.plo.config.provider.ConfigurationProvider;
 import su.plo.config.provider.toml.TomlConfiguration;
-import su.plo.voice.api.addon.AddonScope;
+import su.plo.voice.api.addon.AddonInitializer;
+import su.plo.voice.api.addon.AddonLoaderScope;
 import su.plo.voice.api.addon.annotation.Addon;
 import su.plo.voice.api.audio.codec.AudioDecoder;
 import su.plo.voice.api.audio.codec.CodecException;
@@ -13,16 +15,12 @@ import su.plo.voice.api.event.EventPriority;
 import su.plo.voice.api.event.EventSubscribe;
 import su.plo.voice.api.server.PlasmoVoiceServer;
 import su.plo.voice.api.server.audio.capture.ServerActivation;
-import su.plo.voice.api.server.event.VoiceServerInitializeEvent;
 import su.plo.voice.api.server.event.audio.source.PlayerSpeakEvent;
-import su.plo.voice.api.server.event.config.VoiceServerConfigLoadedEvent;
+import su.plo.voice.api.server.event.config.VoiceServerConfigReloadedEvent;
 import su.plo.voice.api.server.event.connection.UdpClientDisconnectedEvent;
 import su.plo.voice.api.server.player.VoiceServerPlayer;
 import su.plo.voice.api.util.AudioUtil;
 import su.plo.voice.proto.data.audio.codec.CodecInfo;
-import su.plo.voice.sculk.gameevent.ModPlayerGameEvent;
-import su.plo.voice.sculk.gameevent.PaperPlayerGameEvent;
-import su.plo.voice.sculk.gameevent.PlayerGameEvent;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,47 +28,26 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-@Addon(id = "sculk", scope = AddonScope.SERVER, version = "1.0.0", authors = {"Apehum"})
-public final class SculkAddon {
+@Addon(id = "pv-addon-sculk", scope = AddonLoaderScope.SERVER, version = "1.0.0", authors = {"Apehum"})
+public final class SculkAddon implements AddonInitializer {
 
     private static final ConfigurationProvider toml = ConfigurationProvider.getProvider(TomlConfiguration.class);
 
     private final Map<String, AudioDecoder> decoders = Maps.newHashMap();
     private final Map<UUID, Long> lastActivationByPlayerId = Maps.newConcurrentMap();
 
-    private final PlayerGameEvent playerGameEvent;
-
+    @Inject
     private PlasmoVoiceServer voiceServer;
     private SculkConfig config;
 
-    public SculkAddon() {
-        PlayerGameEvent playerGameEvent;
-        try {
-            Class.forName("org.bukkit.entity.Player");
-            playerGameEvent = new PaperPlayerGameEvent();
-        } catch (ClassNotFoundException e) {
-            playerGameEvent = new ModPlayerGameEvent();
-        }
-
-        this.playerGameEvent = playerGameEvent;
+    @Override
+    public void onAddonInitialize() {
+        loadConfig();
     }
 
     @EventSubscribe
-    public void onInitialize(@NotNull VoiceServerInitializeEvent event) {
-        this.voiceServer = event.getServer();
-    }
-
-    @EventSubscribe
-    public void onConfigLoaded(@NotNull VoiceServerConfigLoadedEvent event) {
-        try {
-            File addonFolder = new File(voiceServer.getConfigFolder(), "addons");
-            File configFile = new File(addonFolder, "sculk.toml");
-
-            this.config = toml.load(SculkConfig.class, configFile, false);
-            toml.save(SculkConfig.class, config, configFile);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to load config", e);
-        }
+    public void onConfigLoaded(@NotNull VoiceServerConfigReloadedEvent event) {
+        loadConfig();
     }
 
     @EventSubscribe
@@ -82,8 +59,10 @@ public final class SculkAddon {
         );
     }
 
-    @EventSubscribe(priority = EventPriority.HIGHEST)
+    @EventSubscribe(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerSpeak(@NotNull PlayerSpeakEvent event) {
+        if (event.getResult() == ServerActivation.Result.IGNORED) return;
+
         var activation = voiceServer.getActivationManager()
                 .getActivationById(event.getPacket().getActivationId());
         if (activation.isEmpty()) return;
@@ -115,7 +94,22 @@ public final class SculkAddon {
 
         lastActivationByPlayerId.put(player.getInstance().getUUID(), System.currentTimeMillis());
 
-        playerGameEvent.sendEvent(player, config.gameEvent());
+        player.getInstance().getWorld().sendGameEvent(
+                player.getInstance(),
+                config.gameEvent()
+        );
+    }
+
+    private void loadConfig() {
+        try {
+            File addonFolder = new File(voiceServer.getConfigsFolder(), "pv-addon-sculk");
+            File configFile = new File(addonFolder, "sculk.toml");
+
+            this.config = toml.load(SculkConfig.class, configFile, false);
+            toml.save(SculkConfig.class, config, configFile);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load config", e);
+        }
     }
 
     private short[] decode(@NotNull ServerActivation activation, byte[] data, boolean isStereo)

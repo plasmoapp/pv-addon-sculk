@@ -3,10 +3,10 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
         mavenLocal()
-        maven {
-            name = "Fabric"
-            url = uri("https://maven.fabricmc.net/")
-        }
+        maven("https://maven.fabricmc.net/")
+        maven("https://repo.plo.su")
+        maven("https://jitpack.io/")
+        maven("https://maven.minecraftforge.net")
     }
 }
 
