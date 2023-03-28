@@ -103,7 +103,7 @@ public final class SculkAddon implements AddonInitializer {
     private void loadConfig() {
         try {
             File addonFolder = new File(voiceServer.getConfigsFolder(), "pv-addon-sculk");
-            File configFile = new File(addonFolder, "sculk.toml");
+            File configFile = new File(addonFolder, "config.toml");
 
             this.config = toml.load(SculkConfig.class, configFile, false);
             toml.save(SculkConfig.class, config, configFile);
