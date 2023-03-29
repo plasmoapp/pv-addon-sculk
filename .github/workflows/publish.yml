@@ -31,14 +31,19 @@ jobs:
     - name: Publish to Modrinth/CurseForge
       uses: Apehum/mc-publish@v1.1
       with:
-        name: 'PV Addon Sculk'
+        modrinth-id: 7dI2zrDy
+        modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
-        # modrinth-unfeature-mode: 'none'
-        # modrinth-id: 1bZhdhsH
-        # modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
-
-        # curseforge-id: 394468
-        # curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+        loaders: |
+          fabric
+          forge
+          quilt
+          bukkit
+          paper
+          spigot
+          bukkit
+        game-versions: |
+          1.19
         
     - name: Publish to GitHub
       uses: Apehum/mc-publish@v1.1
