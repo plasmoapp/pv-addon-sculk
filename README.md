@@ -16,4 +16,4 @@
 
 Server-side [Plasmo Voice](https://modrinth.com/mod/plasmo-voice) add-on.
 
-With this add-on warden and sculk sensors are triggered by proximity voice chat.
+With this add-on, warden and sculk sensors are triggered with proximity voice chat.
