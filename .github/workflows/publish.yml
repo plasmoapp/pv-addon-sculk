@@ -41,7 +41,6 @@ jobs:
           bukkit
           paper
           spigot
-          bukkit
         game-versions: |
           1.19
         
