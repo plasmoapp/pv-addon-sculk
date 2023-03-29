@@ -14,4 +14,6 @@
 
 # pv-addon-sculk
 
+Server-side [Plasmo Voice](https://modrinth.com/mod/plasmo-voice) add-on.
+
 With this addon warder and skulk sensors are triggered by proximity voice chat.
