@@ -1,24 +1,24 @@
-val mavenGroup: String by rootProject
-val buildVersion: String by rootProject
-
 plugins {
-    java
-    idea
-    kotlin("jvm") version("1.6.10")
-    id("su.plo.voice.plugin") version("1.0.0")
+    id("java")
+    kotlin("jvm") version(libs.versions.kotlin.get())
+    alias(libs.plugins.pv.entrypoints)
+    alias(libs.plugins.pv.java.templates)
 }
 
-group = mavenGroup
-version = buildVersion
-
 dependencies {
-    compileOnly("su.plo.voice.api:server:2.0.0+ALPHA")
+    compileOnly(libs.pv)
+    annotationProcessor(libs.lombok)
+}
 
-    annotationProcessor("org.projectlombok:lombok:1.18.24")
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven("https://repo.plasmoverse.com/snapshots")
+    maven("https://repo.plasmoverse.com/releases")
 }
 
 tasks {
     java {
-        toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+        toolchain.languageVersion.set(JavaLanguageVersion.of(16))
     }
 }
