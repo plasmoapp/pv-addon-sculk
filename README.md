@@ -1,4 +1,4 @@
-![](https://i.imgur.com/QhULmGB.png)
+![](https://i.imgur.com/mGit5md.png)
 
 <div>
     <a href="https://modrinth.com/mod/plasmo-voice">Plasmo Voice</a>
