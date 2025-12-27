@@ -29,7 +29,7 @@ public final class SculkConfig {
     private Double activationThreshold = -30D;
 
     @ConfigField(comment = """
-            Allowed values: https://minecraft.fandom.com/wiki/Sculk_Sensor#Redstone_emission
+            Allowed values: https://minecraft.wiki/w/Sculk_Sensor#Redstone_emission
             Default value: minecraft:eat
             """)
     private String gameEvent = "minecraft:eat";
